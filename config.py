@@ -16,8 +16,8 @@ DEFAULTS = {
     "QLIK_API_KEY": "test-qlik-api-key",
     "CRM_API_URL": "https://crm.local/api",
     "OPENROUTER_API_KEY": "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",
-    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
-    "OPENROUTER_IMAGE_MODEL": "stabilityai/sdxl-lightning",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1/chat/completions",
+    "OPENROUTER_IMAGE_MODEL": "google/gemini-2.5-flash-image",
 }
 
 def _get_env(name: str) -> str:
