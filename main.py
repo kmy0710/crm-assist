@@ -60,27 +60,10 @@ def main():
     )
 
     try:
-        images = image_generator.generate_campaign_images(
-            prompt,
-            negative_prompt="low resolution, blurry, watermark",
-            size="1024x1024",
-            count=1,
-        )
+        image_generator.generate_campaign_images(prompt)
 
-        if images:
-            print("이미지 생성 성공! 반환된 데이터 요약:")
-            first = images[0]
-            if "url" in first:
-                print(f"- 이미지 URL: {first['url']}")
-            elif "b64_json" in first:
-                print(f"- base64 문자열 길이: {len(first['b64_json'])}")
-            else:
-                print(f"- 기타 응답 필드: {list(first.keys())}")
-        else:
-            print("이미지 응답 데이터가 비어 있습니다.")
     except Exception as exc:
         print(f"이미지 생성 중 오류가 발생했습니다: {exc}")
-
 
 if __name__ == "__main__":
     main()

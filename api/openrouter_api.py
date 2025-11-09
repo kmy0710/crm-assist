@@ -8,6 +8,9 @@ import base64
 from typing import Any, Dict, List, Optional
 import requests
 from config import Config
+import json
+import tkinter as tk
+from tkinter import messagebox
 
 class OpenRouterClient:
     """OpenRouter 이미지 생성용 HTTP 클라이언트."""
@@ -25,15 +28,40 @@ class OpenRouterClient:
         if not self.api_key:
             raise ValueError("OpenRouter API 키가 설정되어 있지 않습니다.")
 
+    def show_image_from_data_url(self, data_url: str) -> None:
+        if not data_url:
+            print("이미지 데이터를 찾을 수 없습니다.")
+            return
+
+        base64_data = data_url
+        if data_url.startswith("data:"):
+            try:
+                _, base64_data = data_url.split(",", 1)
+            except ValueError:
+                print("유효하지 않은 이미지 데이터 형식입니다.")
+                return
+
+        try:
+            base64.b64decode(base64_data, validate=True)
+        except (base64.binascii.Error, ValueError):
+            print("Base64 디코딩에 실패했습니다.")
+            return
+
+        root = tk.Tk()
+        root.title("Generated Image")
+
+        photo = tk.PhotoImage(data=base64_data)
+        label = tk.Label(root, image=photo)
+        label.image = photo
+        label.pack()
+
+        root.mainloop()
+
     def generate_image(
         self,
         prompt: str,
         *,
         model: Optional[str] = None,
-        size: str = "1024x1024",
-        count: int = 1,
-        response_format: str = "b64_json",
-        negative_prompt: Optional[str] = None,
         extra_options: Optional[Dict[str, Any]] = None,
     ) -> List[Dict[str, Any]]:
         """
@@ -51,73 +79,32 @@ class OpenRouterClient:
         Returns:
             이미지 데이터 딕셔너리 목록
         """
-        payload: Dict[str, Any] = {
-            "model": model or self.image_model,
-            "prompt": prompt,
-            "size": size,
-            "n": count,
-            "response_format": response_format,
-        }
-
-        if negative_prompt:
-            payload["negative_prompt"] = negative_prompt
-
-        if extra_options:
-            payload.update(extra_options)
-
-        response = self._post("/images", json=payload)
-        data = response.get("data", [])
-
-        # 응답 포맷이 base64인 경우 디코딩된 bytes도 함께 반환
-        if response_format == "b64_json":
-            for item in data:
-                b64_content = item.get("b64_json")
-                if isinstance(b64_content, str):
-                    try:
-                        item["bytes"] = base64.b64decode(b64_content)
-                    except (base64.binascii.Error, ValueError):
-                        # 디코딩 실패 시 bytes 키는 제거
-                        item.pop("bytes", None)
-
-        return data
-
-    def _post(self, path: str, *, json: Dict[str, Any]) -> Dict[str, Any]:
-        """POST 요청을 수행하고 JSON 응답을 반환합니다."""
-        url = f"{self.base_url}{path}"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-            # OpenRouter는 오픈소스/앱 정보 제공을 권장합니다.
-            "HTTP-Referer": "https://crm-assist.local/",
-            "X-Title": "CRM Assist",
+            "Content-Type": "application/json"
         }
+        payload: Dict[str, Any] = {
+            "model": model or self.image_model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ],
+            "modalities": ["image", "text"]
+        }
+        response = requests.post(self.base_url, headers=headers, json=payload)
+        result = response.json()
 
-        try:
-            response = requests.post(url, headers=headers, json=json, timeout=60)
-            response.raise_for_status()
-            return response.json()
-        except requests.exceptions.HTTPError as exc:
-            error_detail = self._extract_error(response)
-            raise RuntimeError(f"OpenRouter API 호출 실패: {error_detail}") from exc
-        except requests.exceptions.RequestException as exc:
-            raise RuntimeError(f"OpenRouter API 요청 중 오류: {exc}") from exc
-
-    @staticmethod
-    def _extract_error(response: requests.Response) -> str:
-        """에러 응답에서 사람이 읽을 수 있는 메시지를 추출합니다."""
-        try:
-            data = response.json()
-        except ValueError:
-            return f"{response.status_code} {response.reason}"
-
-        if isinstance(data, dict):
-            if "error" in data:
-                if isinstance(data["error"], dict):
-                    return data["error"].get("message") or str(data["error"])
-                return str(data["error"])
-            if "message" in data:
-                return str(data["message"])
-
-        return f"{response.status_code} {response.reason}"
-
+        # The generated image will be in the assistant message
+        if result.get("choices"):
+            message = result["choices"][0]["message"]
+            if message.get("images"):
+                for image in message["images"]:
+                    image_url = image["image_url"]["url"]
+                    self.show_image_from_data_url(image_url)
+            else:
+                print("이미지 응답이 포함되어 있지 않습니다.")
+        else:
+            print(json.dumps(result, indent=2, ensure_ascii=False))
 
