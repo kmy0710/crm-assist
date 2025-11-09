@@ -1,1 +1,3 @@
-# CRM AI 자동화
+# CRM Assistant
+요구사항
+1) 
