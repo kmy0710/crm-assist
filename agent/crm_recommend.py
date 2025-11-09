@@ -3,8 +3,8 @@ CRM 추천 모듈
 CRM 데이터를 기반으로 디바이스 추천 로직을 처리합니다.
 """
 from typing import Dict, Any, List, Optional
-from openai_api import OpenAIClient
-from qlik_api import QlikClient
+from api.openai_api import OpenAIClient
+from api.qlik_api import QlikClient
 
 class CRMRecommendationEngine:
     """CRM 기반 디바이스 추천 엔진"""

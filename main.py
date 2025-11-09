@@ -4,9 +4,9 @@ CRM 기반 디바이스 마케팅 자동화의 전체 흐름을 제어합니다.
 """
 import sys
 from config import Config
-from openai_api import OpenAIClient
-from qlik_api import QlikClient
-from crm_recommend import CRMRecommendationEngine
+from api.openai_api import OpenAIClient
+from api.qlik_api import QlikClient
+from agent.crm_recommend import CRMRecommendationEngine
 
 def main():
     """메인 함수"""
