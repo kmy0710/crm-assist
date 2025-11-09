@@ -8,16 +8,29 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional
 
 # 환경 변수에서 설정값을 읽어오고 공백을 제거합니다.
-OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "").strip()
-_raw_openai_model = os.getenv("OPENAI_MODEL", "").strip()
-DEFAULT_OPENAI_MODEL: str = _raw_openai_model if _raw_openai_model else "gpt-4o-mini"
+DEFAULTS = {
+    "OPENAI_API_KEY": "test-openai-api-key",
+    "OPENAI_MODEL": "gpt-4o-mini",
+    "QLIK_SERVER": "https://qlik.local",
+    "QLIK_APP_ID": "demo-app-id",
+    "QLIK_API_KEY": "test-qlik-api-key",
+    "CRM_API_URL": "https://crm.local/api",
+}
 
-QLIK_SERVER: str = os.getenv("QLIK_SERVER", "").strip()
-QLIK_APP_ID: str = os.getenv("QLIK_APP_ID", "").strip()
-QLIK_API_KEY: str = os.getenv("QLIK_API_KEY", "").strip()
+def _get_env(name: str) -> str:
+    """환경 변수 값을 읽고, 없으면 DEFAULT 값을 반환합니다."""
+    value = os.getenv(name, "").strip()
+    return value if value else DEFAULTS[name]
 
-CRM_API_URL: str = os.getenv("CRM_API_URL", "").strip()
+OPENAI_API_KEY: str = _get_env("OPENAI_API_KEY")
+_raw_openai_model = _get_env("OPENAI_MODEL")
+DEFAULT_OPENAI_MODEL: str = _raw_openai_model if _raw_openai_model else DEFAULTS["OPENAI_MODEL"]
 
+QLIK_SERVER: str = _get_env("QLIK_SERVER")
+QLIK_APP_ID: str = _get_env("QLIK_APP_ID")
+QLIK_API_KEY: str = _get_env("QLIK_API_KEY")
+
+CRM_API_URL: str = _get_env("CRM_API_URL")
 
 @dataclass
 class Config:
@@ -49,14 +62,23 @@ class Config:
         Returns:
             bool: 필수 값이 모두 존재하면 True, 아니면 False
         """
-        required_fields = [
-            self.openai_api_key,
-            self.qlik_server,
-            self.qlik_app_id,
-            self.qlik_api_key,
-            self.crm_api_url,
-        ]
-        return all(required_fields)
+        required_fields = {
+            "openai_api_key": self.openai_api_key,
+            "qlik_server": self.qlik_server,
+            "qlik_app_id": self.qlik_app_id,
+            "qlik_api_key": self.qlik_api_key,
+            "crm_api_url": self.crm_api_url,
+        }
+
+        for field_name, value in required_fields.items():
+            if not value:
+                return False
+
+            # DEFAULT 값이 사용된 경우에도 안내 가능하도록 최소한의 형식 검증을 수행합니다.
+            if value == DEFAULTS[field_name.upper()]:
+                continue
+
+        return True
 
     def missing_keys(self) -> Dict[str, str]:
         """
@@ -66,16 +88,34 @@ class Config:
             Dict[str, str]: 누락된 항목 이름과 가이드를 담은 딕셔너리
         """
         missing: Dict[str, str] = {}
+        def _is_default(name: str, value: str) -> bool:
+            return value == DEFAULTS[name]
+
         if not self.openai_api_key:
             missing["OPENAI_API_KEY"] = "OpenAI API 인증을 위해 필요합니다."
+        elif _is_default("OPENAI_API_KEY", self.openai_api_key):
+            missing["OPENAI_API_KEY"] = "환경 변수로 실제 키를 설정하세요. 현재는 기본 테스트 값입니다."
+
         if not self.qlik_server:
             missing["QLIK_SERVER"] = "Qlik 서버 URL을 지정해주세요."
+        elif _is_default("QLIK_SERVER", self.qlik_server):
+            missing["QLIK_SERVER"] = "환경 변수로 실제 서버 URL을 설정하세요. 현재는 기본 테스트 값입니다."
+
         if not self.qlik_app_id:
             missing["QLIK_APP_ID"] = "Qlik 애플리케이션 ID가 필요합니다."
+        elif _is_default("QLIK_APP_ID", self.qlik_app_id):
+            missing["QLIK_APP_ID"] = "환경 변수로 실제 앱 ID를 설정하세요. 현재는 기본 테스트 값입니다."
+
         if not self.qlik_api_key:
             missing["QLIK_API_KEY"] = "Qlik API 인증을 위해 필요합니다."
+        elif _is_default("QLIK_API_KEY", self.qlik_api_key):
+            missing["QLIK_API_KEY"] = "환경 변수로 실제 API 키를 설정하세요. 현재는 기본 테스트 값입니다."
+
         if not self.crm_api_url:
             missing["CRM_API_URL"] = "CRM API 호출을 위한 엔드포인트가 필요합니다."
+        elif _is_default("CRM_API_URL", self.crm_api_url):
+            missing["CRM_API_URL"] = "환경 변수로 실제 엔드포인트를 설정하세요. 현재는 기본 테스트 값입니다."
+
         return missing
 
     def ensure_valid(self) -> None:
