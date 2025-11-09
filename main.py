@@ -41,7 +41,7 @@ def main():
     )
 
     try:
-        image_generator.generate_campaign_images(prompt)
+        image_generator.generate(prompt)
 
     except Exception as exc:
         print(f"이미지 생성 중 오류가 발생했습니다: {exc}")

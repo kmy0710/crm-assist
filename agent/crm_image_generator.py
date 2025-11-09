@@ -15,7 +15,7 @@ class CRMImageGenerator:
     def __init__(self, config: Config):
         self.client = OpenRouterClient(config)
 
-    def generate_campaign_images(
+    def generate(
         self,
         prompt: str,
         *,
