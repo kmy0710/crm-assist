@@ -4,14 +4,10 @@ OpenRouter의 이미지 엔드포인트를 호출하여 CRM 워크플로우에�
 """
 
 from __future__ import annotations
-
 import base64
 from typing import Any, Dict, List, Optional
-
 import requests
-
 from config import Config
-
 
 class OpenRouterClient:
     """OpenRouter 이미지 생성용 HTTP 클라이언트."""
