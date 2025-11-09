@@ -7,6 +7,7 @@ from config import Config
 from api.openai_api import OpenAIClient
 from api.qlik_api import QlikClient
 from agent.crm_recommend import CRMRecommendationEngine
+from agent.crm_image_generator import CRMImageGenerator
 
 def main():
     """메인 함수"""
@@ -29,10 +30,10 @@ def main():
     
     # CRM 추천 엔진 초기화
     recommendation_engine = CRMRecommendationEngine(openai_client, qlik_client)
+    image_generator = CRMImageGenerator(config)
     
     # 예시: 고객 ID로 디바이스 추천
-    # 실제 사용 시에는 명령줄 인자나 API에서 받아올 수 있습니다
-    customer_id = "CUSTOMER_001"  # 실제 고객 ID로 변경 필요
+    customer_id = "CUSTOMER_001"
     
     print(f"고객 {customer_id}에 대한 디바이스 추천을 시작합니다...")
     
@@ -49,6 +50,36 @@ def main():
             print(f"   추천 이유: {rec['recommendation']}")
     else:
         print("추천 결과를 생성할 수 없습니다.")
+
+    # 이미지 생성 예시
+    print("\nCRM 캠페인 이미지 생성 예시를 실행합니다...")
+    prompt = (
+        "High-resolution marketing poster for premium 5G smartphone bundle, "
+        "featuring sleek futuristic design, vibrant blue and silver color scheme, "
+        "dynamic lighting, text placeholder for headline and CTA, professional studio background"
+    )
+
+    try:
+        images = image_generator.generate_campaign_images(
+            prompt,
+            negative_prompt="low resolution, blurry, watermark",
+            size="1024x1024",
+            count=1,
+        )
+
+        if images:
+            print("이미지 생성 성공! 반환된 데이터 요약:")
+            first = images[0]
+            if "url" in first:
+                print(f"- 이미지 URL: {first['url']}")
+            elif "b64_json" in first:
+                print(f"- base64 문자열 길이: {len(first['b64_json'])}")
+            else:
+                print(f"- 기타 응답 필드: {list(first.keys())}")
+        else:
+            print("이미지 응답 데이터가 비어 있습니다.")
+    except Exception as exc:
+        print(f"이미지 생성 중 오류가 발생했습니다: {exc}")
 
 
 if __name__ == "__main__":
