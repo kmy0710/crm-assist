@@ -8,7 +8,6 @@ from openai_api import OpenAIClient
 from qlik_api import QlikClient
 from crm_recommend import CRMRecommendationEngine
 
-
 def main():
     """메인 함수"""
     # 설정 로드

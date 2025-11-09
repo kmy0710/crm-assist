@@ -6,7 +6,6 @@ import openai
 from typing import Dict, Any, Optional
 from config import Config, OPENAI_API_KEY
 
-
 class OpenAIClient:
     """OpenAI API 클라이언트"""
     
