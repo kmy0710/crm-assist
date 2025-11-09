@@ -6,7 +6,6 @@ from typing import Dict, Any, List, Optional
 from openai_api import OpenAIClient
 from qlik_api import QlikClient
 
-
 class CRMRecommendationEngine:
     """CRM 기반 디바이스 추천 엔진"""
     
