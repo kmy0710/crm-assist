@@ -28,29 +28,10 @@ def main():
     openai_client = OpenAIClient(config)
     qlik_client = QlikClient(config)
     
-    # CRM 추천 엔진 초기화
-    recommendation_engine = CRMRecommendationEngine(openai_client, qlik_client)
+    # CRM 이미지 및 고객 추천 엔진 초기화
     image_generator = CRMImageGenerator(config)
+    recommendation_engine = CRMRecommendationEngine(openai_client, qlik_client)
     
-    # 예시: 고객 ID로 디바이스 추천
-    customer_id = "CUSTOMER_001"
-    
-    print(f"고객 {customer_id}에 대한 디바이스 추천을 시작합니다...")
-    
-    result = recommendation_engine.recommend_devices_for_customer(customer_id)
-    
-    if result:
-        print("\n=== 추천 결과 ===")
-        print(f"고객 ID: {result['customer_id']}")
-        print(f"\n추천 디바이스 ({len(result['recommendations'])}개):")
-        
-        for idx, rec in enumerate(result['recommendations'], 1):
-            print(f"\n{idx}. {rec['device_name']} (ID: {rec['device_id']})")
-            print(f"   점수: {rec['score']:.2f}")
-            print(f"   추천 이유: {rec['recommendation']}")
-    else:
-        print("추천 결과를 생성할 수 없습니다.")
-
     # 이미지 생성 예시
     print("\nCRM 캠페인 이미지 생성 예시를 실행합니다...")
     prompt = (
