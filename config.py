@@ -1,62 +1,146 @@
 """
 애플리케이션 설정을 관리하는 모듈입니다.
-환경 변수에서 OpenAI 관련 설정을 읽어오거나 기본값을 제공합니다.
+환경 변수에서 OpenAI 및 Qlik 관련 설정을 읽어오거나 기본값을 제공합니다.
 """
 
-from dataclasses import dataclass
 import os
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Dict, Optional
 
-# 환경 변수에서 OpenAI API 키와 모델을 불러옵니다.
-# 키가 설정되어 있지 않은 경우 빈 문자열을 기본값으로 사용합니다.
+# 환경 변수에서 설정값을 읽어오고 공백을 제거합니다.
 OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "").strip()
-DEFAULT_OPENAI_MODEL: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
+_raw_openai_model = os.getenv("OPENAI_MODEL", "").strip()
+DEFAULT_OPENAI_MODEL: str = _raw_openai_model if _raw_openai_model else "gpt-4o-mini"
+
+QLIK_SERVER: str = os.getenv("QLIK_SERVER", "").strip()
+QLIK_APP_ID: str = os.getenv("QLIK_APP_ID", "").strip()
+QLIK_API_KEY: str = os.getenv("QLIK_API_KEY", "").strip()
+
+CRM_API_URL: str = os.getenv("CRM_API_URL", "").strip()
 
 
-@dataclass(frozen=True)
+@dataclass
 class Config:
-    """OpenAI API 호출에 필요한 설정 정보를 보관합니다."""
+    """애플리케이션 전반에 사용되는 설정 값을 보관합니다."""
 
-    openai_api_key: str
-    openai_model: str = DEFAULT_OPENAI_MODEL
+    openai_api_key: str = field(default=OPENAI_API_KEY)
+    openai_model: str = field(default=DEFAULT_OPENAI_MODEL)
+
+    qlik_server: str = field(default=QLIK_SERVER)
+    qlik_app_id: str = field(default=QLIK_APP_ID)
+    qlik_api_key: str = field(default=QLIK_API_KEY)
+
+    crm_api_url: str = field(default=CRM_API_URL)
+
+    def __post_init__(self) -> None:
+        """모든 문자열 필드의 공백을 제거합니다."""
+        for attr, value in self.__dict__.items():
+            if isinstance(value, str):
+                setattr(self, attr, value.strip())
+
+        # OpenAI 모델은 기본값을 보존하도록 보정합니다.
+        if not self.openai_model:
+            self.openai_model = DEFAULT_OPENAI_MODEL
+
+    def validate(self) -> bool:
+        """
+        필수 환경 변수들이 모두 채워져 있는지 확인합니다.
+
+        Returns:
+            bool: 필수 값이 모두 존재하면 True, 아니면 False
+        """
+        required_fields = [
+            self.openai_api_key,
+            self.qlik_server,
+            self.qlik_app_id,
+            self.qlik_api_key,
+            self.crm_api_url,
+        ]
+        return all(required_fields)
+
+    def missing_keys(self) -> Dict[str, str]:
+        """
+        누락된 설정 항목을 확인합니다.
+
+        Returns:
+            Dict[str, str]: 누락된 항목 이름과 가이드를 담은 딕셔너리
+        """
+        missing: Dict[str, str] = {}
+        if not self.openai_api_key:
+            missing["OPENAI_API_KEY"] = "OpenAI API 인증을 위해 필요합니다."
+        if not self.qlik_server:
+            missing["QLIK_SERVER"] = "Qlik 서버 URL을 지정해주세요."
+        if not self.qlik_app_id:
+            missing["QLIK_APP_ID"] = "Qlik 애플리케이션 ID가 필요합니다."
+        if not self.qlik_api_key:
+            missing["QLIK_API_KEY"] = "Qlik API 인증을 위해 필요합니다."
+        if not self.crm_api_url:
+            missing["CRM_API_URL"] = "CRM API 호출을 위한 엔드포인트가 필요합니다."
+        return missing
+
+    def ensure_valid(self) -> None:
+        """
+        필수 설정값이 모두 존재하는지 확인하고, 누락 시 예외를 발생시킵니다.
+
+        Raises:
+            ValueError: 필수 설정값이 하나라도 누락된 경우
+        """
+        missing = self.missing_keys()
+        if missing:
+            missing_list = ", ".join(missing.keys())
+            raise ValueError(f"필수 설정값이 누락되었습니다: {missing_list}")
 
     @classmethod
-    def from_env(cls, api_key: Optional[str] = None, model: Optional[str] = None) -> "Config":
+    def from_env(
+        cls,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        qlik_server: Optional[str] = None,
+        qlik_app_id: Optional[str] = None,
+        qlik_api_key: Optional[str] = None,
+        crm_api_url: Optional[str] = None,
+        ensure: bool = True,
+    ) -> "Config":
         """
         환경 변수 또는 전달된 인자를 사용하여 Config 인스턴스를 생성합니다.
 
         Args:
             api_key: 명시적으로 전달된 OpenAI API 키
             model: 명시적으로 전달된 모델 이름
+            qlik_server: Qlik 서버 URL
+            qlik_app_id: Qlik 애플리케이션 ID
+            qlik_api_key: Qlik API 키
+            crm_api_url: CRM API 엔드포인트
+            ensure: True인 경우 필수값 검증 (기본값)
 
         Returns:
             Config: 생성된 설정 인스턴스
         """
-        resolved_api_key = (api_key or OPENAI_API_KEY).strip()
-        resolved_model = (model or DEFAULT_OPENAI_MODEL).strip()
+        config = cls(
+            openai_api_key=api_key or OPENAI_API_KEY,
+            openai_model=model or DEFAULT_OPENAI_MODEL,
+            qlik_server=qlik_server or QLIK_SERVER,
+            qlik_app_id=qlik_app_id or QLIK_APP_ID,
+            qlik_api_key=qlik_api_key or QLIK_API_KEY,
+            crm_api_url=crm_api_url or CRM_API_URL,
+        )
 
-        if not resolved_api_key:
-            raise ValueError(
-                "OpenAI API 키가 설정되어 있지 않습니다. "
-                "환경 변수 OPENAI_API_KEY를 설정하거나 api_key 인자를 제공하세요."
-            )
+        if ensure:
+            config.ensure_valid()
 
-        if not resolved_model:
-            raise ValueError(
-                "OpenAI 모델이 설정되어 있지 않습니다. "
-                "환경 변수 OPENAI_MODEL을 설정하거나 model 인자를 제공하세요."
-            )
-
-        return cls(openai_api_key=resolved_api_key, openai_model=resolved_model)
+        return config
 
 
-def get_default_config() -> Config:
+def get_default_config(ensure: bool = True) -> Config:
     """
     기본 환경 설정을 기반으로 Config 인스턴스를 반환합니다.
+
+    Args:
+        ensure: True인 경우 필수값 검증을 수행합니다.
 
     Returns:
         Config: 기본 설정이 적용된 인스턴스
     """
-    return Config.from_env()
+    return Config.from_env(ensure=ensure)
 
 
