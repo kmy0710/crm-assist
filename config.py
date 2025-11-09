@@ -15,6 +15,9 @@ DEFAULTS = {
     "QLIK_APP_ID": "demo-app-id",
     "QLIK_API_KEY": "test-qlik-api-key",
     "CRM_API_URL": "https://crm.local/api",
+    "OPENROUTER_API_KEY": "test-openrouter-api-key",
+    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
+    "OPENROUTER_IMAGE_MODEL": "stabilityai/sdxl-lightning",
 }
 
 def _get_env(name: str) -> str:
@@ -32,6 +35,10 @@ QLIK_API_KEY: str = _get_env("QLIK_API_KEY")
 
 CRM_API_URL: str = _get_env("CRM_API_URL")
 
+OPENROUTER_API_KEY: str = _get_env("OPENROUTER_API_KEY")
+OPENROUTER_BASE_URL: str = _get_env("OPENROUTER_BASE_URL")
+OPENROUTER_IMAGE_MODEL: str = _get_env("OPENROUTER_IMAGE_MODEL")
+
 @dataclass
 class Config:
     """애플리케이션 전반에 사용되는 설정 값을 보관합니다."""
@@ -44,6 +51,10 @@ class Config:
     qlik_api_key: str = field(default=QLIK_API_KEY)
 
     crm_api_url: str = field(default=CRM_API_URL)
+
+    openrouter_api_key: str = field(default=OPENROUTER_API_KEY)
+    openrouter_base_url: str = field(default=OPENROUTER_BASE_URL)
+    openrouter_image_model: str = field(default=OPENROUTER_IMAGE_MODEL)
 
     def __post_init__(self) -> None:
         """모든 문자열 필드의 공백을 제거합니다."""
@@ -116,6 +127,21 @@ class Config:
         elif _is_default("CRM_API_URL", self.crm_api_url):
             missing["CRM_API_URL"] = "환경 변수로 실제 엔드포인트를 설정하세요. 현재는 기본 테스트 값입니다."
 
+        if not self.openrouter_api_key:
+            missing["OPENROUTER_API_KEY"] = "OpenRouter API 인증을 위해 필요합니다."
+        elif _is_default("OPENROUTER_API_KEY", self.openrouter_api_key):
+            missing["OPENROUTER_API_KEY"] = "환경 변수로 실제 OpenRouter API 키를 설정하세요. 현재는 기본 테스트 값입니다."
+
+        if not self.openrouter_base_url:
+            missing["OPENROUTER_BASE_URL"] = "OpenRouter API 기본 URL이 필요합니다."
+        elif _is_default("OPENROUTER_BASE_URL", self.openrouter_base_url):
+            missing["OPENROUTER_BASE_URL"] = "환경 변수로 OpenRouter API URL을 설정하세요. 현재는 기본 테스트 값입니다."
+
+        if not self.openrouter_image_model:
+            missing["OPENROUTER_IMAGE_MODEL"] = "이미지 생성을 위한 OpenRouter 모델명이 필요합니다."
+        elif _is_default("OPENROUTER_IMAGE_MODEL", self.openrouter_image_model):
+            missing["OPENROUTER_IMAGE_MODEL"] = "환경 변수로 사용할 이미지 생성 모델을 설정하세요. 현재는 기본 테스트 값입니다."
+
         return missing
 
     def ensure_valid(self) -> None:
@@ -139,6 +165,9 @@ class Config:
         qlik_app_id: Optional[str] = None,
         qlik_api_key: Optional[str] = None,
         crm_api_url: Optional[str] = None,
+        openrouter_api_key: Optional[str] = None,
+        openrouter_base_url: Optional[str] = None,
+        openrouter_image_model: Optional[str] = None,
         ensure: bool = True,
     ) -> "Config":
         """
@@ -163,6 +192,9 @@ class Config:
             qlik_app_id=qlik_app_id or QLIK_APP_ID,
             qlik_api_key=qlik_api_key or QLIK_API_KEY,
             crm_api_url=crm_api_url or CRM_API_URL,
+            openrouter_api_key=openrouter_api_key or OPENROUTER_API_KEY,
+            openrouter_base_url=openrouter_base_url or OPENROUTER_BASE_URL,
+            openrouter_image_model=openrouter_image_model or OPENROUTER_IMAGE_MODEL,
         )
 
         if ensure:

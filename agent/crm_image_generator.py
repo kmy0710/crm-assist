@@ -1,4 +1,49 @@
 """
 CRM 이미지 생성 모듈
-CRM 보내기 위한 이미지 생성을 처리합니다.
+OpenRouter 이미지를 사용해 CRM 캠페인에서 활용할 시각 자료를 생성합니다.
 """
+
+from typing import Any, Dict, List, Optional
+
+from config import Config
+from api.openrouter_api import OpenRouterClient
+
+
+class CRMImageGenerator:
+    """CRM 시나리오에서 사용할 이미지를 생성하는 래퍼 클래스."""
+
+    def __init__(self, config: Config):
+        self.client = OpenRouterClient(config)
+
+    def generate_campaign_images(
+        self,
+        prompt: str,
+        *,
+        negative_prompt: Optional[str] = None,
+        size: str = "1024x1024",
+        count: int = 1,
+        model: Optional[str] = None,
+        extra_options: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        캠페인 메시지에 사용할 이미지를 생성합니다.
+
+        Args:
+            prompt: 이미지 생성 프롬프트
+            negative_prompt: 제외할 내용을 설명하는 네거티브 프롬프트
+            size: 이미지 크기 (예: "1024x1024")
+            count: 생성할 이미지 수
+            model: 사용할 모델명 (기본값은 설정의 이미지 모델)
+            extra_options: OpenRouter 이미지 API가 지원하는 추가 인자
+
+        Returns:
+            OpenRouter 이미지 API에서 반환한 이미지 데이터 목록
+        """
+        return self.client.generate_image(
+            prompt,
+            model=model,
+            size=size,
+            count=count,
+            negative_prompt=negative_prompt,
+            extra_options=extra_options,
+        )
