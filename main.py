@@ -32,7 +32,7 @@ def main():
     image_generator = CRMImageGenerator(config)
     recommendation_engine = CRMRecommendationEngine(openai_client, qlik_client)
     
-    # 이미지 생성 예시
+    # 이미지 생성
     print("\nCRM 캠페인 이미지 생성 예시를 실행합니다...")
     prompt = (
         "High-resolution marketing poster for premium 5G smartphone bundle, "

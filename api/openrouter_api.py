@@ -1,19 +1,20 @@
 """
-OpenRouter 이미지 생성 API 클라이언트.
-OpenRouter의 이미지 엔드포인트를 호출하여 CRM 워크플로우에서 사용할 이미지를 생성합니다.
+OpenRouter HTTP 클라이언트.
+이미지 생성과 같은 도메인 로직은 상위 레이어에서 처리하고,
+이 모듈은 OpenRouter API 호출을 위한 공통 기능만 제공합니다.
 """
 
 from __future__ import annotations
-import base64
-from typing import Any, Dict, List, Optional
+
+from typing import Any, Dict, Optional
+
 import requests
+
 from config import Config
-import json
-import tkinter as tk
-from tkinter import messagebox
+
 
 class OpenRouterClient:
-    """OpenRouter 이미지 생성용 HTTP 클라이언트."""
+    """OpenRouter HTTP 클라이언트."""
 
     def __init__(self, config: Config):
         """
@@ -28,83 +29,83 @@ class OpenRouterClient:
         if not self.api_key:
             raise ValueError("OpenRouter API 키가 설정되어 있지 않습니다.")
 
-    def show_image_from_data_url(self, data_url: str) -> None:
-        if not data_url:
-            print("이미지 데이터를 찾을 수 없습니다.")
-            return
-
-        base64_data = data_url
-        if data_url.startswith("data:"):
-            try:
-                _, base64_data = data_url.split(",", 1)
-            except ValueError:
-                print("유효하지 않은 이미지 데이터 형식입니다.")
-                return
-
-        try:
-            base64.b64decode(base64_data, validate=True)
-        except (base64.binascii.Error, ValueError):
-            print("Base64 디코딩에 실패했습니다.")
-            return
-
-        root = tk.Tk()
-        root.title("Generated Image")
-
-        photo = tk.PhotoImage(data=base64_data)
-        label = tk.Label(root, image=photo)
-        label.image = photo
-        label.pack()
-
-        root.mainloop()
-
-    def generate_image(
-        self,
-        prompt: str,
-        *,
-        model: Optional[str] = None,
-        extra_options: Optional[Dict[str, Any]] = None,
-    ) -> List[Dict[str, Any]]:
+    def post(self, path: str, *, json: Dict[str, Any], timeout: int = 60) -> Dict[str, Any]:
         """
-        주어진 프롬프트로 이미지를 생성합니다.
+        OpenRouter API에 POST 요청을 전송합니다.
 
         Args:
-            prompt: 이미지 생성에 사용할 프롬프트
-            model: 사용할 모델명 (미지정 시 설정의 기본값)
-            size: 생성 이미지 크기 (예: "1024x1024")
-            count: 생성할 이미지 개수
-            response_format: 응답 포맷 ("b64_json", "url" 등)
-            negative_prompt: 제외하고 싶은 요소에 대한 네거티브 프롬프트
-            extra_options: OpenRouter 이미지 API에서 지원하는 추가 파라미터
+            path: 호출할 엔드포인트 경로 (예: "/chat/completions")
+            json: 전송할 JSON 페이로드
+            timeout: 요청 타임아웃 (초)
 
         Returns:
-            이미지 데이터 딕셔너리 목록
+            dict: 파싱된 JSON 응답
+
+        Raises:
+            RuntimeError: HTTP 에러 또는 요청 예외 발생 시
         """
+        url = f"{self.base_url}{path}"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
-        payload: Dict[str, Any] = {
-            "model": model or self.image_model,
-            "messages": [
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ],
-            "modalities": ["image", "text"]
-        }
-        response = requests.post(self.base_url, headers=headers, json=payload)
-        result = response.json()
 
-        # The generated image will be in the assistant message
-        if result.get("choices"):
-            message = result["choices"][0]["message"]
-            if message.get("images"):
-                for image in message["images"]:
-                    image_url = image["image_url"]["url"]
-                    self.show_image_from_data_url(image_url)
-            else:
-                print("이미지 응답이 포함되어 있지 않습니다.")
-        else:
-            print(json.dumps(result, indent=2, ensure_ascii=False))
+        response: Optional[requests.Response] = None
+        try:
+            response = requests.post(url, headers=headers, json=json, timeout=timeout)
+            return self._parse_json(response)
+        except requests.exceptions.HTTPError as exc:
+            error_detail = self._extract_error(response or exc.response)
+            raise RuntimeError(f"OpenRouter API 호출 실패: {error_detail}") from exc
+        except requests.exceptions.RequestException as exc:
+            raise RuntimeError(f"OpenRouter API 요청 중 오류: {exc}") from exc
+
+    def create_chat_completion(self, payload: Dict[str, Any], *, timeout: int = 60) -> Dict[str, Any]:
+        """
+        OpenRouter의 Chat Completions 엔드포인트를 호출합니다.
+
+        Args:
+            payload: OpenRouter Chat Completion 형식의 JSON 페이로드
+            timeout: 요청 타임아웃 (초)
+        """
+        return self.post("/chat/completions", json=payload, timeout=timeout)
+
+    @staticmethod
+    def _parse_json(response: requests.Response) -> Dict[str, Any]:
+        """
+        JSON 응답을 파싱합니다. 비어 있거나 JSON이 아닐 경우 원문 텍스트를 raw 키에 담습니다.
+        """
+        try:
+            return response.json()
+        except ValueError:
+            text = response.text.strip()
+            if not text:
+                return {}
+            return {"raw": text}
+
+    @staticmethod
+    def _extract_error(response: Optional[requests.Response]) -> str:
+        """에러 응답에서 사람이 읽을 수 있는 메시지를 추출합니다."""
+        if response is None:
+            return "응답 객체를 받을 수 없습니다."
+
+        try:
+            data = response.json()
+        except ValueError:
+            text = response.text.strip()
+            if text:
+                return text
+            return f"{response.status_code} {response.reason}"
+
+        if isinstance(data, dict):
+            error = data.get("error")
+            if isinstance(error, dict):
+                return error.get("message") or str(error)
+            if error:
+                return str(error)
+            message = data.get("message")
+            if message:
+                return str(message)
+
+        return f"{response.status_code} {response.reason}"
 
